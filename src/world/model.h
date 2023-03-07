@@ -35,5 +35,6 @@ namespace cg::world
 		static float3 compute_normal(const tinyobj::attrib_t& attrib, const tinyobj::mesh_t& mesh, size_t index_offset);
 		static void fill_vertex_data(cg::vertex& vertex, const tinyobj::attrib_t& attrib, tinyobj::index_t idx, float3 computed_normal, tinyobj::material_t material);
 		void fill_buffers(const std::vector<tinyobj::shape_t>& shapes, const tinyobj::attrib_t& attrib, const std::vector<tinyobj::material_t>& materials, const std::filesystem::path& base_folder);
+		static float3 get_normals(const int vertex_index, const tinyobj::attrib_t& attrib);
 	};
 }// namespace cg::world

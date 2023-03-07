@@ -5,6 +5,7 @@
 #include "utils/error_handler.h"
 
 #include <linalg.h>
+#include <iostream>
 
 
 using namespace linalg::aliases;
@@ -35,11 +36,12 @@ void cg::world::model::load_obj(const std::filesystem::path& model_path)
 	auto &materials = reader.GetMaterials();
 
 	allocate_buffers(shapes);
-	fill_buffers(shapes, attrib, materials, model_path.string());
+	fill_buffers(shapes, attrib, materials, model_path.parent_path());
 }
 
 void model::allocate_buffers(const std::vector<tinyobj::shape_t>& shapes)
 {
+	size_t unindexed_vertex_num = 0;
 	for (const auto& shape : shapes)
 	{
 		size_t index_offset = 0;
@@ -54,10 +56,9 @@ void model::allocate_buffers(const std::vector<tinyobj::shape_t>& shapes)
 			{
 				tinyobj::index_t idx = mesh.indices[index_offset + v];
 				auto idx_tuple = std::make_tuple(
-						idx.vertex_index,
-						idx.normal_index,
-						idx.texcoord_index
-						);
+					idx.vertex_index,
+					idx.normal_index,
+					idx.texcoord_index);
 
 				if (index_map.count(idx_tuple) == 0)
 				{
@@ -65,8 +66,9 @@ void model::allocate_buffers(const std::vector<tinyobj::shape_t>& shapes)
 					vertex_buffer_size++;
 				}
 				index_buffer_size++;
+				unindexed_vertex_num++;
 			}
-			index_offset + fv;
+			index_offset += fv;
 		}
 		vertex_buffers.push_back(
 				std::make_shared<cg::resource<cg::vertex>>(
@@ -81,6 +83,26 @@ void model::allocate_buffers(const std::vector<tinyobj::shape_t>& shapes)
 		);
 	}
 	textures.resize(shapes.size());
+
+	size_t vertex_num = 0;
+	size_t vertex_size = 0;
+	for (const auto& vb : vertex_buffers)
+	{
+		vertex_num += vb->get_number_of_elements();
+		vertex_size += vb->get_size_in_bytes();
+	}
+
+	size_t index_num = 0;
+	size_t index_size = 0;
+	for (const auto& ib : index_buffers)
+	{
+		index_num += ib->get_number_of_elements();
+		index_size += ib->get_size_in_bytes();
+	}
+
+	std::cout << "Num of vertices: " << vertex_num << " size: " << vertex_size << "\n";
+	std::cout << "Num of indexes " << index_num << " size: " << index_size << "\n";
+	std::cout << "Num of unindexed vertices: " << unindexed_vertex_num << " size: " << unindexed_vertex_num * sizeof(cg::vertex) << "\n";
 }
 
 float3 cg::world::model::compute_normal(const tinyobj::attrib_t& attrib, const tinyobj::mesh_t& mesh, size_t index_offset)
@@ -89,25 +111,20 @@ float3 cg::world::model::compute_normal(const tinyobj::attrib_t& attrib, const t
 	auto b_id = mesh.indices[index_offset + 1];
 	auto c_id = mesh.indices[index_offset + 2];
 
-	float3 a {
-			attrib.vertices[3 * a_id.vertex_index],
-			attrib.vertices[3 * a_id.vertex_index + 1],
-			attrib.vertices[3 * a_id.vertex_index + 2]
-	};
-
-	float3 b {
-			attrib.vertices[3 * b_id.vertex_index],
-			attrib.vertices[3 * b_id.vertex_index + 1],
-			attrib.vertices[3 * b_id.vertex_index + 2]
-	};
-
-	float3 c {
-			attrib.vertices[3 * c_id.vertex_index],
-			attrib.vertices[3 * c_id.vertex_index + 1],
-			attrib.vertices[3 * c_id.vertex_index + 2]
-	};
+	float3 a = get_normals(a_id.vertex_index, attrib);
+	float3 b = get_normals(b_id.vertex_index, attrib);
+	float3 c = get_normals(c_id.vertex_index, attrib);
 
 	return normalize(cross(b - a, c - a));
+}
+
+float3 model::get_normals(const int vertex_index, const tinyobj::attrib_t& attrib)
+{
+	return float3 {
+		attrib.vertices[3 * vertex_index],
+		attrib.vertices[3 * vertex_index + 1],
+		attrib.vertices[3 * vertex_index + 2]
+	};
 }
 
 void model::fill_vertex_data(cg::vertex& vertex, const tinyobj::attrib_t& attrib, const tinyobj::index_t idx, const float3 computed_normal, const tinyobj::material_t material)
