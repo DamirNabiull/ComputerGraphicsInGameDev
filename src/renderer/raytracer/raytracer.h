@@ -229,13 +229,16 @@ namespace cg::renderer
 		closest_hit_payload.t = max_t;
 		const triangle<VB>* closest_triangle = nullptr;
 
-		for (auto triangle : triangles)
+		for (auto& triangle : triangles)
 		{
 			payload payload = intersection_shader(triangle, ray);
 			if (payload.t > min_t && payload.t < closest_hit_payload.t)
 			{
 				closest_hit_payload = payload;
 				closest_triangle = &triangle;
+
+				if (any_hit_shader)
+					return any_hit_shader(ray, payload, triangle);
 			}
 		}
 
@@ -245,7 +248,6 @@ namespace cg::renderer
 				return closest_hit_shader(ray, closest_hit_payload, *closest_triangle, depth);
 		}
 
-		// TODO Lab: 2.04 Adjust `trace_ray` method of `raytracer` to use `any_hit_shader`
 		// TODO Lab: 2.05 Adjust `trace_ray` method of `raytracer` class to traverse the acceleration structure
 		return miss_shader(ray);
 	}
@@ -276,7 +278,7 @@ namespace cg::renderer
 		if (v < 0.f || u + v > 1.f)
 			return payload;
 
-		payload.t = dot(triangle.ca, qvec * inv_det);
+		payload.t = dot(triangle.ca, qvec) * inv_det;
 		payload.bary = float3{1.f - u - v, u, v};
 		return payload;
 	}
