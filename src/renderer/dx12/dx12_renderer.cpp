@@ -11,7 +11,36 @@
 
 void cg::renderer::dx12_renderer::init()
 {
-	// TODO Lab: 3.01 Add `model` and `camera` creation code into `init` method of `dx12_renderer` class
+	model = std::make_shared<cg::world::model>();
+	model->load_obj(settings->model_path);
+
+	camera = std::make_shared<cg::world::camera>();
+	camera->set_height(static_cast<float>(settings->height));
+	camera->set_width(static_cast<float>(settings->width));
+	camera->set_position(float3{
+			settings->camera_position[0],
+			settings->camera_position[1],
+			settings->camera_position[2]
+	});
+
+	camera->set_phi(settings->camera_phi);
+	camera->set_theta(settings->camera_theta);
+	camera->set_angle_of_view(settings->camera_angle_of_view);
+	camera->set_z_near(settings->camera_z_near);
+	camera->set_z_far(settings->camera_z_far);
+
+	view_port = CD3DX12_VIEWPORT(0.f,
+								 0.f,
+								 static_cast<float>(settings->width),
+								 static_cast<float>(settings->height));
+
+	scissor_rect = CD3DX12_RECT(0.f,
+								0.f,
+								static_cast<LONG>(settings->width),
+								static_cast<LONG>(settings->height));
+
+	load_pipeline();
+	load_assets();
 }
 
 void cg::renderer::dx12_renderer::destroy()
@@ -32,13 +61,33 @@ void cg::renderer::dx12_renderer::render()
 
 ComPtr<IDXGIFactory4> cg::renderer::dx12_renderer::get_dxgi_factory()
 {
-	// TODO Lab: 3.02 Enable a validation layer
-	return nullptr;
+	UINT dxgi_factory_flags = 0;
+#ifdef _DEBUG
+	ComPtr<ID3D12Debug> debug_controller;
+	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug_controller))))
+	{
+		debug_controller->EnableDebugLayer();
+		dxgi_factory_flags |= DXGI_CREATE_FACTORY_DEBUG;
+	}
+#endif
+
+	ComPtr<IDXGIFactory4> dxgi_factory;
+	THROW_IF_FAILED(CreateDXGIFactory2(dxgi_factory_flags, IID_PPV_ARGS(&dxgi_factory)));
+
+	return dxgi_factory;
 }
 
 void cg::renderer::dx12_renderer::initialize_device(ComPtr<IDXGIFactory4>& dxgi_factory)
 {
-	// TODO Lab: 3.02 Enumerate hardware adapters
+	ComPtr<IDXGIAdapter1> hardware_adapter;
+	dxgi_factory->EnumAdapters1(0, &hardware_adapter);
+
+#ifdef _DEBUG
+	DXGI_ADAPTER_DESC adapter_desc{};
+	hardware_adapter->GetDesc(&adapter_desc);
+	OutputDebugString(adapter_desc.Description);
+	OutputDebugString(L"\n");
+#endif
 	// TODO Lab: 3.02 Create a device object
 }
 
